@@ -1,0 +1,62 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment (if not using uv for isolation)
+.venv/
+env/
+venv/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+
+# Pyright / mypy / Pylint
+.mypy_cache/
+.pyright/
+.pyre/
+.pylint.d/
+
+# Editor and system files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*.bak
+
+# dotenv / secrets
+.env
+.env.*
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Logs
+*.log
+
+# FastAPI-specific (e.g., reload cache)
+.reload/

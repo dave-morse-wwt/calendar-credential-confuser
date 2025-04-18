@@ -1,0 +1,9 @@
+[project]
+name = "calendar-credential-confuser"
+version = "0.1.0"
+description = "fastapi backend for ccc"
+readme = "README.md"
+requires-python = ">=3.13.3"
+dependencies = [
+    "fastapi[standard]>=0.115.12",
+]
