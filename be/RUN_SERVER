@@ -1,0 +1,6 @@
+
+# Run from this script's directory
+
+export GOOGLE_OAUTH_JSON=$(op read op://Private/calendar-credential-confuser/JSON | jq -c .)
+export PYTHONPATH=src
+uv run fastapi dev src/main.py

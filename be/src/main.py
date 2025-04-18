@@ -2,6 +2,7 @@ from typing import Union
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from google_oauth import load_google_oauth_config
 
 app = FastAPI()
 
@@ -23,3 +24,8 @@ def read_root():
 @app.get("/items/{item_id}")
 def read_item(item_id: int, q: Union[str, None] = None):
     return {"item_id": item_id, "q": q}
+
+
+@app.on_event("startup")
+async def startup_event():
+    config = load_google_oauth_config()

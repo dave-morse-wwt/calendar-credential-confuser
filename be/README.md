@@ -1,5 +1,6 @@
 # Running
 ```
 cd be
-uv run fastapi dev src/main.py
+./RUN_SERVER
 ```
+This will fetch my (Dave's) OnePassword credential and pass it to the web server via the environment.
