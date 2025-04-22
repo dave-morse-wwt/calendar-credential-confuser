@@ -15,9 +15,12 @@ export const CredentialLoader: React.FC<CredentialLoaderProps> = ({ children }) 
   })
   if (isPending) return 'Loading...'
   if (error) return 'An error has occurred: ' + error.message
+  const {authUrl} = data;
   return (
     <div>
       {JSON.stringify(data)}
+      <br />
+      <a href={authUrl}>Connect Google Calendar</a>
       <br />
       {children}
     </div>

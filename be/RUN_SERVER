@@ -3,4 +3,9 @@
 
 export GOOGLE_OAUTH_JSON=$(op read op://Private/calendar-credential-confuser/JSON | jq -c .)
 export PYTHONPATH=src
+
+# Do Not set OAUTHLIB_INSECURE_TRANSPORT in production
+# allows http instead of https
+export OAUTHLIB_INSECURE_TRANSPORT=1
+
 uv run fastapi dev src/main.py
