@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+
+# podname=$(kubectl create -f ./psql-shim-pod.yaml -o name)
+# kubectl wait --for=condition=Ready $podname -n confusedb --timeout=60s
+# kubectl exec -it $podname -n confusedb -- psql --host confusedb-postgresql -U confuser -d confuser -p 5432 "$@"
+# kubectl delete pod $podname --grace-period=0 --force
+
+# kubectl run confusedb-postgresql-client --rm --tty -i --restart='Never' --namespace confusedb \
+#   --image docker.io/bitnami/postgresql:17.4.0-debian-12-r15 \
+#   --env="PGPASSWORD=$(kubectl get secret --namespace confusedb confusedb-postgresql -o jsonpath="{.data.password}" | base64 -d)" \
+#   --command -- psql --host confusedb-postgresql -U confuser -d confuser -p 5432 \
+#   "$@"
+
+# kubectl run confusedb-postgresql-client --rm --tty -i --filename ./psql-shim.yaml \
+#   --image=docker.io/bitnami/postgresql:17.4.0-debian-12-r15 \
+#   --command -- psql --host confusedb-postgresql -U confuser -d confuser -p 5432 \
+#   "$@"
+
+#   kubectl run confusedb-postgresql-client --restart='Never' --namespace confusedb \
+#   --image docker.io/bitnami/postgresql:17.4.0-debian-12-r15 \
+#   --dry-run=client -o yaml --command -- psql --host confusedb-postgresql -U confuser -d confuser -p 5432
+
+
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+pod_yaml="$script_dir/psql-shim-pod.yaml"
+namespace=$(yq '.metadata.namespace' "$pod_yaml")
+
+psql_flags="-h confusedb-postgresql -U confuser -d confuser -p 5432"
+
+podname=$(kubectl create -f "$pod_yaml" -o name)
+trap "kubectl delete $podname --namespace $namespace --timeout=30s > /dev/null" EXIT
+kubectl wait --for=condition=Ready $podname -n $namespace --timeout=60s > /dev/null
+
+if [ $# -gt 0 ]; then
+  # SQL as command line argument
+  kubectl exec -i -n $namespace $podname -- psql $psql_flags -c "$*"
+elif [ ! -t 0 ]; then
+  # SQL from stdin
+  kubectl exec -i -n $namespace $podname -- psql $psql_flags
+else
+  # interactive repl
+  kubectl exec -it -n $namespace $podname -- psql $psql_flags
+fi
+
+# cleanup after successful run
+trap - EXIT
+kubectl delete $podname --namespace $namespace --grace-period=0 --force > /dev/null 2>&1
+exit 0

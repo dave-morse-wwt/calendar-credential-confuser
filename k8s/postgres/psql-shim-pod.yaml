@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  generateName: psql-
+  namespace: confusedb
+spec:
+  containers:
+  - name: psql
+    image: docker.io/bitnami/postgresql:17.4.0-debian-12-r15
+    command: ["sleep", "infinity"]
+    env:
+    - name: PGPASSWORD
+      valueFrom:
+        secretKeyRef:
+          key: password
+          name: confusedb-postgresql
+  restartPolicy: Never
