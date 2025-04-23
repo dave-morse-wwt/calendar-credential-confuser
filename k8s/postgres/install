@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+set +o history
+
+helm install confusedb oci://registry-1.docker.io/bitnamicharts/postgresql --create-namespace --namespace confusedb --values ./values.yaml --set auth.password=$(op read op://Private/calendar-credential-confuser/.auth.password) --set auth.postgresPassword=$(op read op://Private/calendar-credential-confuser/.auth.password)
