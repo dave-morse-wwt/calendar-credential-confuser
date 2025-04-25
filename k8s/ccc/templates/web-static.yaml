@@ -15,7 +15,20 @@ spec:
       containers:
       - name: nginx
         image: "{{ .Values.webStatic.image }}:{{ .Values.webStatic.tag }}"
-        ports:
-        - containerPort: {{ .Values.service.port }}
       imagePullSecrets:
         - name: {{ .Values.dockerRegistrySecret }}
+---
+# For less Rancher/dev-like environements, LB setup is likely to be much more hairy. 
+# based on: k expose deployment web-static-ccc-dev --port 8080 --target-port 80 --dry-run=client -o yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-static-{{ .Release.Name }}
+spec:
+  type: LoadBalancer
+  ports:
+  - port: {{ .Values.webStatic.service.port }}
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: {{ .Release.Name }}

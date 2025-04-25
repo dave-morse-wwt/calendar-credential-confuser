@@ -3,6 +3,5 @@ webStatic:
   image: davemorse981/ccc-web-static
   tag: 0.0.1
   replicaCount: 1
-service:
-  type: ClusterIP
-  port: 8080
+  service:
+    port: 8080
