@@ -1,7 +1,15 @@
-dockerRegistrySecret: docker-registry
+externalSecret:
+  dockerRegistry: docker-registry
+  googleOauthJson: google-oauth-json
 webStatic:
   image: davemorse981/ccc-web-static
   tag: 0.0.1
   replicaCount: 1
   service:
-    port: 8080
+    port: 5173
+webApi:
+  image: davemorse981/ccc-web-api
+  tag: 0.0.1
+  replicaCount: 1
+  service:
+    port: 8000

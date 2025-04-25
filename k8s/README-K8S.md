@@ -9,9 +9,12 @@ Let's assume we're targeting the namespace `ccc-dev`.
 ```
 kubectl create namespace ccc-dev
 ```
-## Create the docker-registry secret
-Examine the shell script [make-docker-registry-secret](./ccc/make-docker-registry-secret), make any needed tweaks, and run it to create the secret. 
+## Create External Secrets
 
+- `docker-registry` - Examine the shell script [make-docker-registry-secret](./ccc/make-docker-registry-secret), make any needed tweaks, and pipe it into `kubectl apply -f -`.
+- `google-oauth-json` - Examine the shell script [make-google-oauth-json-secret](./ccc/make-google-oauth-json-secret), make any needed tweaks, and pipe it into `kubectl apply -f -`. 
+
+## Deploy the helm chart
 
 ```
 helm install ccc-dev . --namespace ccc-dev --values values.yaml

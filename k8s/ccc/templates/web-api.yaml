@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-api-{{ .Release.Name }}
+spec:
+  replicas: {{ .Values.webApi.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: gunicorn
+        image: "{{ .Values.webApi.image }}:{{ .Values.webApi.tag }}"
+        env:
+        - name: OAUTHLIB_INSECURE_TRANSPORT # TODO not good for prod
+          value: "1"
+        - name: GOOGLE_OAUTH_JSON
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.externalSecret.googleOauthJson }}
+              key: google-oauth-json
+      imagePullSecrets:
+        - name: {{ .Values.externalSecret.dockerRegistry }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-api-{{ .Release.Name }}
+spec:
+  type: LoadBalancer
+  ports:
+  - port: {{ .Values.webApi.service.port }}
+    protocol: TCP
+    targetPort: 8000
+  selector:
+    app: {{ .Release.Name }}

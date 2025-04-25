@@ -16,10 +16,8 @@ spec:
       - name: nginx
         image: "{{ .Values.webStatic.image }}:{{ .Values.webStatic.tag }}"
       imagePullSecrets:
-        - name: {{ .Values.dockerRegistrySecret }}
+        - name: {{ .Values.externalSecret.dockerRegistry }}
 ---
-# For less Rancher/dev-like environements, LB setup is likely to be much more hairy. 
-# based on: k expose deployment web-static-ccc-dev --port 8080 --target-port 80 --dry-run=client -o yaml
 apiVersion: v1
 kind: Service
 metadata:

@@ -11,13 +11,13 @@ No pipeline yet.
 ```
 npm run build
 docker build -t davemorse981/ccc-web-static:0.0.1 .
-docker login -u davemorse981 # See 1password for PAT
+op read op://Private/dockerhub/read-write-dave-pat  | docker login -u davemorse981 --password-stdin
 docker push davemorse981/ccc-web-static:0.0.1
 ```
 
 Optionally test the docker container with:
 ```
-docker run -p 8080:80 davemorse981/ccc-web-static:0.0.1
+docker run -p 5173:80 davemorse981/ccc-web-static:0.0.1
 ```
 
 # The End
