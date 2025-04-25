@@ -4,8 +4,27 @@
 npm run dev
 ```
 
+# Deployment
+
+No pipeline yet. 
+
+```
+npm run build
+docker build -t davemorse981/ccc-web-static:0.0.1 .
+docker login -u davemorse981 # See 1password for PAT
+docker push davemorse981/ccc-web-static:0.0.1
+```
+
+Optionally test the docker container with:
+```
+docker run -p 8080:80 davemorse981/ccc-web-static:0.0.1
+```
+
+# The End
+
 Text below here is boilerplate vite doc
 
+-----
 
 # React + TypeScript + Vite
 

@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-static-{{ .Release.Name }}
+spec:
+  replicas: {{ .Values.webStatic.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: nginx
+        image: "{{ .Values.webStatic.image }}:{{ .Values.webStatic.tag }}"
+        ports:
+        - containerPort: {{ .Values.service.port }}
+      imagePullSecrets:
+        - name: {{ .Values.dockerRegistrySecret }}
