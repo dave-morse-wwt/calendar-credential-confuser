@@ -31,3 +31,14 @@ Postgres is a peer dependency of the `ccc` helm chart. The thinking is that in n
 But in dev, we'll use helm to build our own. 
 See the [postgres/install](./postgres/install) script.
 Worked for me with Rancher Desktop.
+
+## Optional: access the DB like it's running on your dev machine's `localhost:5432`
+
+This port forwards from `localhost:5432` into the cluster's postgres: 
+```
+kubectl apply -f ./dev-load-balancer.yaml
+```
+This also worked, but wasn't as permanent - it took up a terminal tab:
+```
+kubectl port-forward -n confusedb svc/confusedb-postgresql 5432:5432
+```
