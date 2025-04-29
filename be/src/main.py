@@ -1,7 +1,9 @@
+import sys
 from typing import Union
 
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
+from db import init_db
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from google_oauth import load_google_oauth_config
@@ -19,7 +21,7 @@ def credentials_to_dict(credentials):
 
 
 app = FastAPI()
-
+init_db(app)
 
 app.add_middleware(
     CORSMiddleware,

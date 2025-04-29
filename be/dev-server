@@ -8,4 +8,12 @@ export PYTHONPATH=src
 # allows http instead of https
 export OAUTHLIB_INSECURE_TRANSPORT=1
 
+# Postgres Database Connection
+DB_USER=$(yq .auth.username ../k8s/postgres/values.yaml)
+DB_NAME=$(yq .auth.database ../k8s/postgres/values.yaml)
+DB_PASSWORD=$(op read op://Private/calendar-credential-confuser/.auth.password)
+DB_HOST=localhost
+DB_PORT=5432
+export DB_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+
 uv run fastapi dev src/main.py
