@@ -1,11 +1,12 @@
 import sys
-from typing import Union
+from typing import Annotated, Union
 
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
 from db import init_db
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer
 from google_oauth import load_google_oauth_config
 
 
@@ -22,6 +23,7 @@ def credentials_to_dict(credentials):
 
 app = FastAPI()
 init_db(app)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 app.add_middleware(
     CORSMiddleware,
@@ -51,6 +53,11 @@ def root():
 @app.get("/items/{item_id}")
 def read_item(item_id: int, q: Union[str, None] = None):
     return {"item_id": item_id, "q": q}
+
+
+@app.get("/items")
+def read_items(token: Annotated[str, Depends(oauth2_scheme)]):
+    return {"token": token}
 
 
 @app.get("/oauth2callback")
