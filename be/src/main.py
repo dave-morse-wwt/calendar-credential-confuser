@@ -8,6 +8,7 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from google_oauth import load_google_oauth_config
+from models.user import UserPydantic
 
 
 def credentials_to_dict(credentials):
@@ -24,6 +25,19 @@ def credentials_to_dict(credentials):
 app = FastAPI()
 init_db(app)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+
+def fake_decode_token(token):
+    return UserPydantic(
+        username=token + "fakedecoded", email="john@example.com", full_name="John Doe"
+    )
+
+
+# wondering: why async? fake_decode_token seems like a good candidate for sync
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+    user = fake_decode_token(token)
+    return user
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -58,6 +72,13 @@ def read_item(item_id: int, q: Union[str, None] = None):
 @app.get("/items")
 def read_items(token: Annotated[str, Depends(oauth2_scheme)]):
     return {"token": token}
+
+
+@app.get("/users/me")
+async def read_users_me(
+    current_user: Annotated[UserPydantic, Depends(get_current_user)],
+):
+    return current_user
 
 
 @app.get("/oauth2callback")
