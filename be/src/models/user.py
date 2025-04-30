@@ -16,3 +16,7 @@ class UserPydantic(pydantic.BaseModel):
     email: str | None = None
     full_name: str | None = None
     disabled: bool | None = None
+
+
+class UserPydanticInFakeDB(UserPydantic):
+    hashed_password: str

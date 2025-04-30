@@ -4,11 +4,11 @@ from typing import Annotated, Union
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
 from db import init_db
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from google_oauth import load_google_oauth_config
-from models.user import UserPydantic
+from models.user import UserPydantic, UserPydanticInFakeDB
 
 
 def credentials_to_dict(credentials):
@@ -22,21 +22,65 @@ def credentials_to_dict(credentials):
     }
 
 
+fake_users_db = {
+    "johndoe": {
+        "username": "johndoe",
+        "full_name": "John Doe",
+        "email": "johndoe@example.com",
+        "hashed_password": "fakehashedsecret",
+        "disabled": False,
+    },
+    "alice": {
+        "username": "alice",
+        "full_name": "Alice Wonderson",
+        "email": "alice@example.com",
+        "hashed_password": "fakehashedsecret2",
+        "disabled": True,
+    },
+}
+
+
+def get_user(db, username: str):
+    if username in db:
+        user_dict = db[username]
+        return UserPydanticInFakeDB(**user_dict)
+
+
+def fake_hash_password(password: str):
+    return "fakehashed" + password
+
+
 app = FastAPI()
 init_db(app)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 def fake_decode_token(token):
-    return UserPydantic(
-        username=token + "fakedecoded", email="john@example.com", full_name="John Doe"
-    )
-
-
-# wondering: why async? fake_decode_token seems like a good candidate for sync
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
-    user = fake_decode_token(token)
+    # This doesn't provide any security at all
+    # Check the next version
+    user = get_user(fake_users_db, token)  # ha ha its just username
     return user
+
+
+async def get_current_user(
+    token: Annotated[str, Depends(oauth2_scheme)],
+) -> UserPydanticInFakeDB:
+    user = fake_decode_token(token)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
+
+
+async def get_current_active_user(
+    current_user: Annotated[UserPydantic, Depends(get_current_user)],
+) -> UserPydanticInFakeDB:
+    if current_user.disabled:
+        raise HTTPException(status_code=400, detail="Inactive user")
+    return current_user
 
 
 app.add_middleware(
@@ -76,9 +120,27 @@ def read_items(token: Annotated[str, Depends(oauth2_scheme)]):
 
 @app.get("/users/me")
 async def read_users_me(
-    current_user: Annotated[UserPydantic, Depends(get_current_user)],
+    current_user: Annotated[UserPydanticInFakeDB, Depends(get_current_active_user)],
 ):
     return current_user
+
+
+@app.post("/token")
+async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
+    # see also OAuth2PasswordRequestFormStrict
+    # via https://fastapi.tiangolo.com/tutorial/security/simple-oauth2/#oauth2passwordrequestform
+    user_dict = fake_users_db.get(form_data.username)
+    if not user_dict:
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+    user = UserPydanticInFakeDB(**user_dict)
+    hashed_password = fake_hash_password(form_data.password)
+    if not hashed_password == user.hashed_password:
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+
+    return {
+        "access_token": user.username,
+        "token_type": "bearer",
+    }  # ha ha our access token is the username
 
 
 @app.get("/oauth2callback")
