@@ -1,14 +1,35 @@
+import os
 import sys
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, Union
 
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
+import jwt
+import pydantic
 from db import init_db
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from google_oauth import load_google_oauth_config
 from models.user import UserPydantic, UserPydanticInFakeDB
+from passlib.context import CryptContext
+
+JWT_SECRET_KEY = os.environ["JWT_SECRET_KEY"]
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
+    os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
+)
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
 
 
 def credentials_to_dict(credentials):
@@ -27,17 +48,32 @@ fake_users_db = {
         "username": "johndoe",
         "full_name": "John Doe",
         "email": "johndoe@example.com",
-        "hashed_password": "fakehashedsecret",
+        "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",
         "disabled": False,
-    },
-    "alice": {
-        "username": "alice",
-        "full_name": "Alice Wonderson",
-        "email": "alice@example.com",
-        "hashed_password": "fakehashedsecret2",
-        "disabled": True,
-    },
+    }
 }
+
+
+class Token(pydantic.BaseModel):
+    access_token: str
+    token_type: str
+
+
+# I don't understand TokenData. I suspect it's an error in the tutorial.
+class TokenData(pydantic.BaseModel):
+    username: str | None = None
+
+
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=ALGORITHM)
+    print(f"{encoded_jwt=}")
+    return encoded_jwt
 
 
 def get_user(db, username: str):
@@ -46,8 +82,17 @@ def get_user(db, username: str):
         return UserPydanticInFakeDB(**user_dict)
 
 
-def fake_hash_password(password: str):
-    return "fakehashed" + password
+def authenticate_user(fake_db, username: str, password: str):
+    user = get_user(fake_db, username)
+    if not user:
+        return False
+    if not verify_password(password, user.hashed_password):
+        return False
+    return user
+
+
+# def fake_hash_password(password: str):
+#     return "fakehashed" + password
 
 
 app = FastAPI()
@@ -55,29 +100,39 @@ init_db(app)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
-def fake_decode_token(token):
-    # This doesn't provide any security at all
-    # Check the next version
-    user = get_user(fake_users_db, token)  # ha ha its just username
-    return user
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+    print("get_current_user here")
+    print(f"{token=} {JWT_SECRET_KEY=} {ALGORITHM=} hash={'fakehash'}")
 
-
-async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)],
-) -> UserPydanticInFakeDB:
-    user = fake_decode_token(token)
-    if not user:
-        raise HTTPException(
+    def credentials_exception(s: str):
+        return HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
+            detail=f"Could not validate credentials: {s}",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    try:
+        print(f"{token=} {JWT_SECRET_KEY=} {ALGORITHM=}")
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[ALGORITHM])
+        print(f"{payload=}")
+        username = payload.get("sub")
+        if username is None:
+            raise credentials_exception("No sub in payload")
+        token_data = TokenData(username=username)
+    except jwt.InvalidTokenError:
+        raise credentials_exception("Invalid token")
+    user = get_user(
+        fake_users_db, username=token_data.username
+    )  # we already have username without making a TokenData!!
+    if user is None:
+        raise credentials_exception("get_user failed")
     return user
 
 
 async def get_current_active_user(
     current_user: Annotated[UserPydantic, Depends(get_current_user)],
 ) -> UserPydanticInFakeDB:
+    print("get_current_active_user here")
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
@@ -126,21 +181,32 @@ async def read_users_me(
 
 
 @app.post("/token")
-async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
+async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Token:
     # see also OAuth2PasswordRequestFormStrict
     # via https://fastapi.tiangolo.com/tutorial/security/simple-oauth2/#oauth2passwordrequestform
-    user_dict = fake_users_db.get(form_data.username)
-    if not user_dict:
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
-    user = UserPydanticInFakeDB(**user_dict)
-    hashed_password = fake_hash_password(form_data.password)
-    if not hashed_password == user.hashed_password:
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
-
-    return {
-        "access_token": user.username,
-        "token_type": "bearer",
-    }  # ha ha our access token is the username
+    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username},
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+    # user_dict = fake_users_db.get(form_data.username)
+    # if not user_dict:
+    #     raise HTTPException(status_code=400, detail="Incorrect username or password")
+    # user = UserPydanticInFakeDB(**user_dict)
+    # hashed_password = fake_hash_password(form_data.password)
+    # if not hashed_password == user.hashed_password:
+    #     raise HTTPException(status_code=400, detail="Incorrect username or password")
+    return Token(
+        access_token=access_token,
+        token_type="bearer",
+    )
 
 
 @app.get("/oauth2callback")

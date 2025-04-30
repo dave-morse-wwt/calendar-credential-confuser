@@ -5,12 +5,15 @@ description = "fastapi backend for ccc"
 readme = "README.md"
 requires-python = ">=3.13.3"
 dependencies = [
+    "bcrypt<4.0.0",
     "fastapi[standard]>=0.115.12",
     "google-api-python-client>=2.167.0",
     "google-auth>=2.39.0",
     "google-auth-httplib2>=0.2.0",
     "google-auth-oauthlib>=1.2.1",
     "gunicorn>=23.0.0",
+    "passlib>=1.7.4",
     "pydantic>=2.11.3",
+    "pyjwt>=2.10.1",
     "tortoise-orm[asyncpg]>=0.25.0",
 ]
