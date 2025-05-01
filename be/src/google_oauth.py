@@ -1,10 +1,8 @@
-import logging
 import os
 from typing import Annotated
 
+from ccc_logger import logger
 from pydantic import BaseModel, HttpUrl, StringConstraints, constr
-
-logger = logging.getLogger("uvicorn")  # uvicorn logger is colorful
 
 
 class GoogleOAuthConfig(BaseModel):

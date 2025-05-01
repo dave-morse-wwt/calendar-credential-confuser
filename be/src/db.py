@@ -1,10 +1,8 @@
-import logging
 import os
 
+from ccc_logger import logger
 from fastapi import FastAPI
 from tortoise.contrib.fastapi import register_tortoise
-
-logger = logging.getLogger("uvicorn")  # uvicorn logger is colorful
 
 
 def init_db(app: FastAPI):

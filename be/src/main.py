@@ -1,12 +1,11 @@
 import os
-import sys
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Union
 
-import google.oauth2.credentials
 import google_auth_oauthlib.flow
 import jwt
 import pydantic
+from ccc_logger import logger
 from db import init_db
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -66,9 +65,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=ALGORITHM)
-    print(f"{encoded_jwt=}")
-    return encoded_jwt
+    return jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=ALGORITHM)
 
 
 def get_user(db, username: str):
@@ -96,35 +93,30 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
-    print("get_current_user here")
-    print(f"{token=} {JWT_SECRET_KEY=} {ALGORITHM=} hash={'fakehash'}")
-
-    def credentials_exception(s: str):
+    def credentials_error(log: str):
+        logger.error(log)
         return HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Could not validate credentials: {s}",
+            detail=f"Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
     try:
-        print(f"{token=} {JWT_SECRET_KEY=} {ALGORITHM=}")
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[ALGORITHM])
-        print(f"{payload=}")
         username = payload.get("sub")
         if username is None:
-            raise credentials_exception("No sub in payload")
+            raise credentials_error("No sub in payload")
     except jwt.InvalidTokenError:
-        raise credentials_exception("Invalid token")
+        raise credentials_error("Invalid token")
     user = get_user(fake_users_db, username=username)
     if user is None:
-        raise credentials_exception("get_user failed")
+        raise credentials_error(f"get_user({username!r}) returned None")
     return user
 
 
 async def get_current_active_user(
     current_user: Annotated[UserPydantic, Depends(get_current_user)],
 ) -> UserPydanticInFakeDB:
-    print("get_current_active_user here")
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
@@ -145,7 +137,6 @@ globo_state_secret = None
 def root():
     global globo_state_secret
     config = load_google_oauth_config().model_dump(mode="json")
-    print(f"Config: {config!r}")
     flow = google_auth_oauthlib.flow.Flow.from_client_config(
         config, scopes=["https://www.googleapis.com/auth/calendar.readonly"]
     )
@@ -183,18 +174,10 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> T
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.username},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
-    # user_dict = fake_users_db.get(form_data.username)
-    # if not user_dict:
-    #     raise HTTPException(status_code=400, detail="Incorrect username or password")
-    # user = UserPydanticInFakeDB(**user_dict)
-    # hashed_password = fake_hash_password(form_data.password)
-    # if not hashed_password == user.hashed_password:
-    #     raise HTTPException(status_code=400, detail="Incorrect username or password")
     return Token(
         access_token=access_token,
         token_type="bearer",
@@ -217,7 +200,6 @@ def oauth2callback(req: Request):
     auth_respone_url = str(req.url)
     flow.fetch_token(authorization_response=auth_respone_url)
     credentials = credentials_to_dict(flow.credentials)
-    print(f"CREDENTIALS: {credentials}")
     return {"great": "job", "credentials": credentials}
 
 
