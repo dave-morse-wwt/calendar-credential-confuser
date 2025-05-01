@@ -59,11 +59,6 @@ class Token(pydantic.BaseModel):
     token_type: str
 
 
-# I don't understand TokenData. I suspect it's an error in the tutorial.
-class TokenData(pydantic.BaseModel):
-    username: str | None = None
-
-
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
     if expires_delta:
@@ -118,12 +113,9 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
         username = payload.get("sub")
         if username is None:
             raise credentials_exception("No sub in payload")
-        token_data = TokenData(username=username)
     except jwt.InvalidTokenError:
         raise credentials_exception("Invalid token")
-    user = get_user(
-        fake_users_db, username=token_data.username
-    )  # we already have username without making a TokenData!!
+    user = get_user(fake_users_db, username=username)
     if user is None:
         raise credentials_exception("get_user failed")
     return user
