@@ -9,10 +9,12 @@ from ccc_logger import logger
 from db import init_db
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from google_oauth import load_google_oauth_config
 from models.user import UserPydantic, UserPydanticInFakeDB
 from passlib.context import CryptContext
+from starlette.middleware.sessions import SessionMiddleware
 
 JWT_SECRET_KEY = os.environ["JWT_SECRET_KEY"]
 ALGORITHM = "HS256"
@@ -83,13 +85,10 @@ def authenticate_user(fake_db, username: str, password: str):
     return user
 
 
-# def fake_hash_password(password: str):
-#     return "fakehashed" + password
-
-
 app = FastAPI()
 init_db(app)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+app.add_middleware(SessionMiddleware, secret_key=os.environ["COOKIE_SECRET_KEY"])
 
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
@@ -130,20 +129,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-globo_state_secret = None
-
 
 @app.get("/")
-def root():
-    global globo_state_secret
+def root(request: Request):
     config = load_google_oauth_config().model_dump(mode="json")
     flow = google_auth_oauthlib.flow.Flow.from_client_config(
         config, scopes=["https://www.googleapis.com/auth/calendar.readonly"]
     )
     flow.redirect_uri = "http://localhost:8000/oauth2callback"
     auth_url, state = flow.authorization_url(access_type="offline", prompt="consent")
-    globo_state_secret = state
+    request.session["state"] = state
     return {"authUrl": auth_url}
+
+
+@app.get("/start-auth")
+def start_auth(request: Request):
+    config = load_google_oauth_config().model_dump(mode="json")
+    flow = google_auth_oauthlib.flow.Flow.from_client_config(
+        config, scopes=["https://www.googleapis.com/auth/calendar.readonly"]
+    )
+    flow.redirect_uri = "http://localhost:8000/oauth2callback"
+    auth_url, state = flow.authorization_url(access_type="offline", prompt="consent")
+    request.session["state"] = state
+    logger.info("Redirecting user to google - good luck, buddy!")
+    return RedirectResponse(auth_url)
 
 
 @app.get("/items/{item_id}")
@@ -185,20 +194,29 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> T
 
 
 @app.get("/oauth2callback")
-def oauth2callback(req: Request):
-    global globo_state_secret
-    state = globo_state_secret
-    if not state:
-        return {"error": "State is not set. Please authorize first."}
-
+def oauth2callback(request: Request):
+    state_via_session = request.session.get("state")
+    if not state_via_session:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing state parameter",
+        )
+    state_via_param = request.query_params.get("state")
+    if state_via_session != state_via_param:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Mismatched state parameter",
+        )
     config = load_google_oauth_config().model_dump(mode="json")
     flow = google_auth_oauthlib.flow.Flow.from_client_config(
-        config, scopes=["https://www.googleapis.com/auth/calendar.readonly"]
+        config,
+        scopes=["https://www.googleapis.com/auth/calendar.readonly"],
+        state=state_via_session,
     )
     flow.redirect_uri = "http://localhost:8000/oauth2callback"
 
-    auth_respone_url = str(req.url)
-    flow.fetch_token(authorization_response=auth_respone_url)
+    auth_response_url = str(request.url)
+    flow.fetch_token(authorization_response=auth_response_url)
     credentials = credentials_to_dict(flow.credentials)
     return {"great": "job", "credentials": credentials}
 
