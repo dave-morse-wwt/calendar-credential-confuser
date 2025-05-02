@@ -10,9 +10,9 @@ Let's assume we're targeting the namespace `ccc-dev`.
 kubectl create namespace ccc-dev
 ```
 ## Create External Secrets
+Feed them into the helm values.yaml as inputs.
 
-- `docker-registry` - Examine the shell script [make-docker-registry-secret](./ccc/make-docker-registry-secret), make any needed tweaks, and pipe it into `kubectl apply -f -`.
-- `google-oauth-json` - Examine the shell script [make-google-oauth-json-secret](./ccc/make-google-oauth-json-secret), make any needed tweaks, and pipe it into `kubectl apply -f -`. 
+Scripts for creating the secrets from One Password are in [ccc/secrets/](./ccc/secrets/). Tweak them as needed and then pipe them into `kubectl apply -f -`
 
 ## Deploy the helm chart
 

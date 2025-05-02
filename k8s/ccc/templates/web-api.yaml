@@ -23,6 +23,22 @@ spec:
             secretKeyRef:
               name: {{ .Values.externalSecret.googleOauthJson }}
               key: google-oauth-json
+
+        - name: POSTGRES_DB_URL
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.externalSecret.postgresDbUrl }}
+              key: postgres-db-url
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.externalSecret.jwtSecretKey }}
+              key: jwt-secret-key
+        - name: COOKIE_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.externalSecret.cookieSecretKey }}
+              key: cookie-secret-key
       imagePullSecrets:
         - name: {{ .Values.externalSecret.dockerRegistry }}
 ---

@@ -15,7 +15,7 @@ DB_NAME=$(yq .auth.database ../k8s/postgres/values.yaml)
 DB_PASSWORD=$(op read op://Private/calendar-credential-confuser/.auth.password)
 DB_HOST=localhost
 DB_PORT=5432
-export DB_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+export POSTGRES_DB_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 
 export JWT_SECRET_KEY=$(op read op://Private/calendar-credential-confuser/JWT_SECRET_KEY)
 export COOKIE_SECRET_KEY=$(op read op://Private/calendar-credential-confuser/COOKIE_SECRET_KEY)

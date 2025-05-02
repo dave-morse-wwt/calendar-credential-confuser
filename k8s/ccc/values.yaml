@@ -1,6 +1,9 @@
 externalSecret:
   dockerRegistry: docker-registry
   googleOauthJson: google-oauth-json
+  cookieSecretKey: cookie-secret-key
+  jwtSecretKey: jwt-secret-key
+  postgresDbUrl: postgres-db-url
 webStatic:
   image: davemorse981/ccc-web-static
   tag: 0.0.1

@@ -13,7 +13,7 @@ def init_db(app: FastAPI):
         add_exception_handlers=True,
         config={
             "connections": {
-                "default": os.environ["DB_URL"],
+                "default": os.environ["POSTGRES_DB_URL"],
             },
             "apps": {
                 "models": {
