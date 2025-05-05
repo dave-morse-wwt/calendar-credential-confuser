@@ -1,4 +1,5 @@
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Union
 
@@ -12,9 +13,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from google_oauth import load_google_oauth_config
-from models.user import UserPydantic, UserPydanticInFakeDB
+from models.user import User, UserPydantic, UserPydanticInFakeDB
 from passlib.context import CryptContext
 from starlette.middleware.sessions import SessionMiddleware
+from tortoise.exceptions import IntegrityError
 
 JWT_SECRET_KEY = os.environ["JWT_SECRET_KEY"]
 ALGORITHM = "HS256"
@@ -130,18 +132,7 @@ app.add_middleware(
 )
 
 
-@app.get("/")
-def root(request: Request):
-    config = load_google_oauth_config().model_dump(mode="json")
-    flow = google_auth_oauthlib.flow.Flow.from_client_config(
-        config, scopes=["https://www.googleapis.com/auth/calendar.readonly"]
-    )
-    flow.redirect_uri = "http://localhost:8000/oauth2callback"
-    auth_url, state = flow.authorization_url(access_type="offline", prompt="consent")
-    request.session["state"] = state
-    return {"authUrl": auth_url}
-
-
+# google
 @app.get("/start-auth")
 def start_auth(request: Request):
     config = load_google_oauth_config().model_dump(mode="json")
@@ -172,6 +163,7 @@ async def read_users_me(
     return current_user
 
 
+# our jwt
 @app.post("/token")
 async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Token:
     # see also OAuth2PasswordRequestFormStrict
@@ -193,6 +185,7 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> T
     )
 
 
+# google
 @app.get("/oauth2callback")
 def oauth2callback(request: Request):
     state_via_session = request.session.get("state")
@@ -224,3 +217,57 @@ def oauth2callback(request: Request):
 @app.on_event("startup")
 async def startup_event():
     config = load_google_oauth_config()
+
+
+PASSWORD_REGEX = re.compile(
+    r"^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*(?:[!-/]|[:-@]|[\[-~])).{8,128}$"
+)
+
+
+class CreateUser(pydantic.BaseModel):
+    name: Annotated[
+        str,
+        pydantic.Field(
+            min_length=2,
+            max_length=50,
+            strip_whitespace=True,
+            description="User's full name, as it will appear to other users",
+            examples=["Jane Doe"],
+        ),
+    ]
+    email: pydantic.EmailStr
+    password: Annotated[
+        str,
+        pydantic.Field(
+            min_length=8,
+            max_length=128,
+            description="Password must include uppercase, lowercase, number, and special character",
+            examples=["StrongPass123!"],
+        ),
+    ]
+
+    @pydantic.field_validator("password")
+    @classmethod
+    def strong_password(cls, v):
+        if not PASSWORD_REGEX.match(v):
+            raise ValueError(
+                "Password must contain at least one uppercase letter, one lowercase letter, "
+                "one number, and one special character."
+            )
+        return v
+
+
+@app.post("/signup")
+async def signup(
+    create_user: CreateUser,
+):
+    try:
+        user = await User.create(
+            name=create_user.name,
+            email=create_user.email,
+            hashed_password=get_password_hash(create_user.password),
+        )
+    except IntegrityError as e:
+        raise HTTPException(status_code=400, detail="Email already in use")
+
+    return {"id": user.id, "name": user.name, "email": user.email}
