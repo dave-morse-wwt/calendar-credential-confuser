@@ -1,7 +1,7 @@
 import os
 import re
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, Union
+from typing import Annotated, Optional, Union
 
 import google_auth_oauthlib.flow
 import jwt
@@ -16,6 +16,7 @@ from google_oauth import load_google_oauth_config
 from models.user import User, UserPydantic, UserPydanticInFakeDB
 from passlib.context import CryptContext
 from starlette.middleware.sessions import SessionMiddleware
+from tortoise import Tortoise
 from tortoise.exceptions import IntegrityError
 
 JWT_SECRET_KEY = os.environ["JWT_SECRET_KEY"]
@@ -25,10 +26,6 @@ ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
 )
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
 
 
 def get_password_hash(password):
@@ -78,13 +75,9 @@ def get_user(db, username: str):
         return UserPydanticInFakeDB(**user_dict)
 
 
-def authenticate_user(fake_db, username: str, password: str):
-    user = get_user(fake_db, username)
-    if not user:
-        return False
-    if not verify_password(password, user.hashed_password):
-        return False
-    return user
+async def authenticate_user(username: str, password: str) -> Optional[User]:
+    user = await User.filter(email=username).first()
+    return user if user and pwd_context.verify(password, user.hashed_password) else None
 
 
 app = FastAPI()
@@ -168,15 +161,17 @@ async def read_users_me(
 async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Token:
     # see also OAuth2PasswordRequestFormStrict
     # via https://fastapi.tiangolo.com/tutorial/security/simple-oauth2/#oauth2passwordrequestform
-    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
+    # user = authenticate_user(fake_users_db, form_data.username, form_data.password)
+    user = await authenticate_user(form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
     access_token = create_access_token(
-        data={"sub": user.username},
+        data={"sub": user.email},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     return Token(
@@ -217,6 +212,13 @@ def oauth2callback(request: Request):
 @app.on_event("startup")
 async def startup_event():
     config = load_google_oauth_config()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("Shutting down Tortise connections")
+    await Tortoise.close_connections()
+    logger.info("Tortise connections closed")
 
 
 PASSWORD_REGEX = re.compile(
