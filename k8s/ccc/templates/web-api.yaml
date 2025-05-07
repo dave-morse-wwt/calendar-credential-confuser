@@ -15,6 +15,7 @@ spec:
       containers:
       - name: gunicorn
         image: "{{ .Values.webApi.image }}:{{ .Values.webApi.tag }}"
+        imagePullPolicy: Always
         env:
         - name: OAUTHLIB_INSECURE_TRANSPORT # TODO not good for prod
           value: "1"
