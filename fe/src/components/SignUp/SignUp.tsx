@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 
 async function signUpUser(formData: { name: string; email: string; password: string }) {
-  const response = await fetch('http://localhost:8000/signup', {
+  const response = await fetch('/api/v1/signup', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

@@ -6,7 +6,7 @@ async function signInUser(formData: { email: string; password: string }) {
   formBody.append('username', formData.email); // must use "username" because that's what OAuth2PasswordRequestForm expects
   formBody.append('password', formData.password);
 
-  const response = await fetch('http://localhost:8000/token', {
+  const response = await fetch('/api/v1/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: formBody.toString(),

@@ -19,7 +19,6 @@ def init_db(app: FastAPI):
                 "models": {
                     "models": [
                         "models",
-                        # "aerich.models",
                     ],
                     "default_connection": "default",
                 }
