@@ -33,7 +33,7 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-  - port: {{ .Values.webStatic.service.port }}
+  - port: {{ .Values.webStatic.loadBalancer.port }}
     protocol: TCP
     targetPort: 80
   selector:

@@ -8,7 +8,7 @@ webStatic:
   image: davemorse981/ccc-web-static
   tag: 0.0.1
   replicaCount: 1
-  service:
+  loadBalancer:
     port: 5173
 webApi:
   image: davemorse981/ccc-web-api
