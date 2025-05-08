@@ -7,11 +7,15 @@ spec:
   selector:
     matchLabels:
       app: {{ .Release.Name }}
+      role: web-api
   template:
     metadata:
       labels:
         app: {{ .Release.Name }}
+        role: web-api
     spec:
+      imagePullSecrets:
+        - name: {{ .Values.externalSecret.dockerRegistry }}
       containers:
       - name: gunicorn
         image: "{{ .Values.webApi.image }}:{{ .Values.webApi.tag }}"
@@ -40,18 +44,34 @@ spec:
             secretKeyRef:
               name: {{ .Values.externalSecret.cookieSecretKey }}
               key: cookie-secret-key
-      imagePullSecrets:
-        - name: {{ .Values.externalSecret.dockerRegistry }}
 ---
+# k create svc clusterip --dry-run=client -o yaml web-api-dev --tcp=8000:8000
 apiVersion: v1
 kind: Service
 metadata:
-  name: web-api-{{ .Release.Name }}
+  name: clip-web-api-{{ .Release.Name }}
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   ports:
-  - port: {{ .Values.webApi.service.port }}
+  - name: http
+    port: {{ .Values.webApi.clusterIP.port }}
     protocol: TCP
     targetPort: 8000
   selector:
     app: {{ .Release.Name }}
+    role: web-api
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: loba-web-api-{{ .Release.Name }}
+spec:
+  type: LoadBalancer
+  ports:
+  - port: {{ .Values.webApi.loadBalancer.port }}
+    protocol: TCP
+    targetPort: 8000
+  selector:
+    app: {{ .Release.Name }}
+    role: web-api
+  

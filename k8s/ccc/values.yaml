@@ -14,5 +14,7 @@ webApi:
   image: davemorse981/ccc-web-api
   tag: 0.0.1
   replicaCount: 1
-  service:
+  loadBalancer:
+    port: 8000
+  clusterIP:
     port: 8000
