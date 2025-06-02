@@ -24,7 +24,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from google_oauth import load_google_oauth_config
 from models.refresh_token import RefreshToken
-from models.user import User, UserPydantic, UserPydanticInFakeDB
+from models.user import User
 from passlib.context import CryptContext
 from starlette.middleware.sessions import SessionMiddleware
 from tortoise import Tortoise
@@ -57,17 +57,6 @@ def credentials_to_dict(credentials):
     }
 
 
-fake_users_db = {
-    "johndoe": {
-        "username": "johndoe",
-        "full_name": "John Doe",
-        "email": "johndoe@example.com",
-        "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",
-        "disabled": False,
-    }
-}
-
-
 class Token(pydantic.BaseModel):
     access_token: str
     token_type: str
@@ -81,12 +70,6 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
         expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=ALGORITHM)
-
-
-def get_user(db, username: str):
-    if username in db:
-        user_dict = db[username]
-        return UserPydanticInFakeDB(**user_dict)
 
 
 async def authenticate_user(username: str, password: str) -> Optional[User]:
@@ -118,7 +101,7 @@ app.add_middleware(SessionMiddleware, secret_key=os.environ["COOKIE_SECRET_KEY"]
 # )
 
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> User:
     def credentials_error(log: str):
         logger.error(log)
         return HTTPException(
@@ -134,18 +117,10 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
             raise credentials_error("No sub in payload")
     except jwt.InvalidTokenError:
         raise credentials_error("Invalid token")
-    user = get_user(fake_users_db, username=username)
+    user = await User.filter(email=username).first()
     if user is None:
-        raise credentials_error(f"get_user({username!r}) returned None")
+        raise credentials_error(f"could not find {username!r}) in DB")
     return user
-
-
-async def get_current_active_user(
-    current_user: Annotated[UserPydantic, Depends(get_current_user)],
-) -> UserPydanticInFakeDB:
-    if current_user.disabled:
-        raise HTTPException(status_code=400, detail="Inactive user")
-    return current_user
 
 
 # google
@@ -174,9 +149,9 @@ def read_items(token: Annotated[str, Depends(oauth2_scheme)]):
 
 @api_v1_router.get("/users/me")
 async def read_users_me(
-    current_user: Annotated[UserPydanticInFakeDB, Depends(get_current_active_user)],
+    current_user: Annotated[User, Depends(get_current_user)],
 ):
-    return current_user
+    return {"name": current_user.name, "email": current_user.email}
 
 
 # our jwt

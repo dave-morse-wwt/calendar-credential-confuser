@@ -29,7 +29,9 @@ export const SignIn: React.FC = () => {
     mutationFn: signInUser,
     onSuccess: (data) => {
       console.log('User signed in successfully:', data);
-      // TODO: You could redirect, show a success message, etc.
+
+      // TODO: store the access token in react context
+      //       then use it to authorize requests to the backend
     },
     onError: (error) => {
       console.error('Sign in error:', error);
@@ -46,8 +48,6 @@ export const SignIn: React.FC = () => {
     mutation.mutate(formData);
   };
 
-  ///// CURRENT PLAN:
-  ///// Hot-Circuit the email/username form problem by just hooking up to our existing real db
 
   return (
     <form onSubmit={handleSubmit}>

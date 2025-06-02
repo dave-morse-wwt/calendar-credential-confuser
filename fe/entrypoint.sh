@@ -8,7 +8,7 @@ if [ -z "$BE_SERVICE_NAME" ]; then
   exit 1
 fi
 if [ -z "$BE_SERVICE_PORT" ]; then
-  echo "Error: SERVER_PORT is not set"
+  echo "Error: BE_SERVICE_PORT is not set"
   exit 1
 fi
 envsubst '$BE_SERVICE_NAME $BE_SERVICE_PORT' < /nginx.conf.template > /etc/nginx/conf.d/default.conf

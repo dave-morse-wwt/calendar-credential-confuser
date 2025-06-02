@@ -18,19 +18,15 @@ class User(UUID, TimeStamps):
         table = "users"  # safer than "user"
 
 
-# learning model
-class UserDB(Model):
-    id = fields.IntField(pk=True)
-    email = fields.CharField(max_length=100)
+# # learning model
+# class UserDB(Model):
+#     id = fields.IntField(pk=True)
+#     email = fields.CharField(max_length=100)
 
 
-# learning model
-class UserPydantic(pydantic.BaseModel):
-    username: str
-    email: str | None = None
-    full_name: str | None = None
-    disabled: bool | None = None
-
-
-class UserPydanticInFakeDB(UserPydantic):
-    hashed_password: str
+# # learning model
+# class UserPydantic(pydantic.BaseModel):
+#     username: str
+#     email: str | None = None
+#     full_name: str | None = None
+#     disabled: bool | None = None
