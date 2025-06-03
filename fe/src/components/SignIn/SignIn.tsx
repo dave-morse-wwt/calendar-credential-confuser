@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import { AccessToken, AccessTokenContext } from '../../lib/accessToken';
 
 async function signInUser(formData: { email: string; password: string }) {
   const formBody = new URLSearchParams();
@@ -24,14 +25,19 @@ export const SignIn: React.FC = () => {
     email: '',
     password: '',
   });
-
+  const ctx = useContext(AccessTokenContext);
   const mutation = useMutation({
     mutationFn: signInUser,
-    onSuccess: (data) => {
+    onSuccess: (data: {access_token: AccessToken, token_type: "bearer"}) => {
       console.log('User signed in successfully:', data);
-
-      // TODO: store the access token in react context
-      //       then use it to authorize requests to the backend
+      if (!ctx.setToken) {
+        throw new Error('AccessTokenContext is not properly initialized - did we forget the provider?');
+      }
+      if (!data?.access_token) {
+        throw new Error('No access token received from sign-in response');
+      }
+      console.log('Setting access token from SignIn component:', data.access_token);
+      ctx.setToken(data.access_token);
     },
     onError: (error) => {
       console.error('Sign in error:', error);
