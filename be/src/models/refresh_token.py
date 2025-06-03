@@ -20,6 +20,7 @@ class RefreshToken(UUID, TimeStamps):
     )  # Use a securely generated random string
     ip_address = fields.CharField(max_length=45, null=True)  # IPv6 support
     user_agent = fields.TextField(null=True)
+    expires_at = fields.DatetimeField()
 
     class Meta:
         table = "refresh_tokens"

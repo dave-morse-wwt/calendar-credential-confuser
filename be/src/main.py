@@ -154,25 +154,8 @@ async def read_users_me(
     return {"name": current_user.name, "email": current_user.email}
 
 
-# our jwt
-@api_v1_router.post("/token")
-async def login(
-    request: Request,
-    response: Response,
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-) -> Token:
-    # see also OAuth2PasswordRequestFormStrict
-    # via https://fastapi.tiangolo.com/tutorial/security/simple-oauth2/#oauth2passwordrequestform
-    # user = authenticate_user(fake_users_db, form_data.username, form_data.password)
-    user = await authenticate_user(form_data.username, form_data.password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    # Refresh Token - returned in a cookie
+# Helper function to create and set refresh token cookie
+async def set_refresh_token_cookie(response: Response, user: User, request: Request):
     refresh_token = await RefreshToken.mint(
         user=user,
         ip_address=request.client.host,
@@ -188,16 +171,69 @@ async def login(
         path="/api/v1/refresh",  # limit the scope of the cookie
         max_age=REFRESH_TOKEN_TTL_SECONDS,
     )
+    return refresh_token
 
-    # Access Token - returned in the body
-    access_token = create_access_token(
+
+# Helper function to create access token
+def create_access_token_for_user(user: User) -> str:
+    return create_access_token(
         data={"sub": user.email},
-        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES, seconds=5),
     )
-    return Token(
-        access_token=access_token,
-        token_type="bearer",
+
+
+# Refactored /refresh endpoint
+@api_v1_router.get("/refresh")
+async def refresh_access_token(
+    request: Request,
+    response: Response,
+):
+    refresh_token_value = request.cookies.get("refresh_token")
+    if not refresh_token_value:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    refresh_token = (
+        await RefreshToken.filter(token=refresh_token_value)
+        .select_related("user")
+        .first()
     )
+    if not refresh_token or refresh_token.is_expired():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Create a new access token
+    access_token = create_access_token_for_user(refresh_token.user)
+    return Token(access_token=access_token, token_type="bearer")
+
+
+# Refactored /token endpoint
+@api_v1_router.post("/token")
+async def login(
+    request: Request,
+    response: Response,
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+) -> Token:
+    user = await authenticate_user(form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Set refresh token cookie
+    await set_refresh_token_cookie(response, user, request)
+
+    # Create access token
+    access_token = create_access_token_for_user(user)
+    return Token(access_token=access_token, token_type="bearer")
 
 
 # google

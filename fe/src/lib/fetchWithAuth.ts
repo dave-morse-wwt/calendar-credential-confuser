@@ -12,8 +12,8 @@ async function refreshAccessToken(): Promise<string> {
         })
         .then(data => {
             inFlightRefreshPromise = undefined;
-            console.log('Access token received:', data.accessToken); // do I still have a .access_token I need to deref?
-            return data.accessToken;
+            console.log('Access token received:', data.access_token);
+            return data.access_token;
         })
         .catch(err => {
             inFlightRefreshPromise = undefined;
@@ -30,6 +30,7 @@ export async function fetchWithAuth({token, setToken}: AccessTokenContextType, i
             return init;
         const headers = new Headers(init.headers);
         headers.set("Authorization", `Bearer ${token}`);
+        console.log('fetchWithAuth headers:', headers);
         return {...init, headers}
     }
     const response = await fetch(input, initWithAuth(token));
