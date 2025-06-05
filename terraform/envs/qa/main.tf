@@ -7,3 +7,10 @@ terraform {
     }
   }
 }
+
+module "infra" {
+  source = "../../"
+
+  # later, you can pass variables here like:
+  # env = "qa"
+}
