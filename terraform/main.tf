@@ -1,6 +1,6 @@
 # terraform/main.tf
-resource "null_resource" "hello" {
-  provisioner "local-exec" {
-    command = "echo 'Terraform config is wired up!'"
-  }
+
+resource "azurerm_resource_group" "test" {
+  name     = "tf-test-rg"
+  location = "eastus"
 }
