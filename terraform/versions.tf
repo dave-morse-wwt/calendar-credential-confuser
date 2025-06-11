@@ -8,7 +8,8 @@ terraform {
     azurerm = {
       source  = "hashicorp/azurerm"
       # version = "~> 4.31" # latest rn
-      version = "~>3.0"
+      # version = "~>3.0"
+      version = "= 3.117.1"
     }
     azapi = {
       source  = "azure/azapi"
