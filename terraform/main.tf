@@ -18,6 +18,7 @@ resource "random_pet" "azurerm_kubernetes_cluster_dns_prefix" {
   prefix = "dns"
 }
 
+
 resource "azurerm_kubernetes_cluster" "k8s" {
   location            = azurerm_resource_group.rg.location
   name                = random_pet.azurerm_kubernetes_cluster_name.id
@@ -30,16 +31,16 @@ resource "azurerm_kubernetes_cluster" "k8s" {
 
   default_node_pool {
     name       = "agentpool"
-    vm_size    = "Standard_D2_v2"
+    vm_size    = "Standard_B1ms"
     node_count = var.node_count
   }
-  linux_profile {
-    admin_username = var.username
-
-    ssh_key {
-      key_data = azapi_resource_action.ssh_public_key_gen.output.publicKey
-    }
-  }
+  # linux_profile {
+  #   admin_username = var.username
+  # 
+  #   ssh_key {
+  #     key_data = azapi_resource_action.ssh_public_key_gen.output.publicKey
+  #   }
+  # }
   network_profile {
     network_plugin    = "kubenet"
     load_balancer_sku = "standard"

@@ -1,0 +1,4 @@
+for v in ARM_CLIENT_ID ARM_CLIENT_SECRET ARM_SUBSCRIPTION_ID ARM_TENANT_ID ;
+do
+  export "$v=$(op read op://Private/azure.ccc-qa/$v)"
+done
